@@ -1,4 +1,4 @@
-package com.technicjelle.BlueMapNativeAddonTemplate;
+package live.supeer.MetropolisBlueMap;
 
 import com.flowpowered.math.vector.Vector2d;
 
@@ -14,16 +14,13 @@ public class Edge {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof Edge)) return false;
-        Edge edge = (Edge) o;
-        // Edges are undirected; check both start-end and end-start
+        if (!(o instanceof Edge edge)) return false;
         return (start.equals(edge.start) && end.equals(edge.end)) ||
                 (start.equals(edge.end) && end.equals(edge.start));
     }
 
     @Override
     public int hashCode() {
-        // Ensure undirected edges have the same hash code
         return start.hashCode() + end.hashCode();
     }
 }

@@ -1,4 +1,4 @@
-package com.technicjelle.BlueMapNativeAddonTemplate;
+package live.supeer.MetropolisBlueMap;
 
 import com.flowpowered.math.vector.Vector2d;
 import com.zaxxer.hikari.HikariDataSource;

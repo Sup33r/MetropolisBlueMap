@@ -1,4 +1,4 @@
-package com.technicjelle.BlueMapNativeAddonTemplate;
+package live.supeer.MetropolisBlueMap;
 
 import com.flowpowered.math.vector.Vector2d;
 import com.flowpowered.math.vector.Vector3d;
@@ -16,12 +16,11 @@ import de.bluecolored.bluemap.common.api.BlueMapWorldImpl;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
 
-public class BlueMapNativeAddonTemplate implements Runnable {
+public class MetropolisBlueMap implements Runnable {
 	private BMNLogger logger;
 	private UpdateChecker updateChecker;
 	private @Nullable Config config;

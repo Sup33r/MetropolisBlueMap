@@ -1,4 +1,4 @@
-package com.technicjelle.BlueMapNativeAddonTemplate;
+package live.supeer.MetropolisBlueMap;
 
 import com.technicjelle.BMUtils.BMNative.BMNConfigDirectory;
 import de.bluecolored.bluemap.api.BlueMapAPI;
