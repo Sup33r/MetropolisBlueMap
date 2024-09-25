@@ -32,7 +32,6 @@ public class Config {
 		}
 		return config;
 	}
-
 	public @Nullable String getWorld() {
 		return world;
 	}
