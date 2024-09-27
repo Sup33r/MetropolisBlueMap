@@ -2,6 +2,7 @@ package live.supeer.MetropolisBlueMap;
 
 import com.flowpowered.math.vector.Vector2d;
 import com.zaxxer.hikari.HikariDataSource;
+import de.bluecolored.bluemap.api.math.Shape;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -79,6 +80,20 @@ public class CityChunk {
             }
         }
         return neighbors;
+    }
+
+    public List<Shape> generateHoleShapes(Set<CityChunk> group, List<CityChunk> allChunks) {
+        List<Shape> holeShapes = new ArrayList<>();
+        List<Set<CityChunk>> holes = identifyHoles(group, allChunks);
+
+        for (Set<CityChunk> holeGroup : holes) {
+            List<Vector2d> holeBoundary = generatePolygonFromChunks(holeGroup);
+            if (!holeBoundary.isEmpty()) {
+                Shape holeShape = Shape.builder().addPoints(holeBoundary).build();
+                holeShapes.add(holeShape);
+            }
+        }
+        return holeShapes;
     }
 
     public List<CityChunk> getEdgeChunks(Set<CityChunk> group) {
@@ -264,5 +279,49 @@ public class CityChunk {
         return orderedEdges;
     }
 
+    private List<Set<CityChunk>> identifyHoles(Set<CityChunk> group, List<CityChunk> allChunks) {
+        Set<CityChunk> unclaimedChunks = new HashSet<>(allChunks);
+        unclaimedChunks.removeAll(group);
 
+        List<Set<CityChunk>> holes = new ArrayList<>();
+        Set<CityChunk> visited = new HashSet<>();
+
+        for (CityChunk chunk : unclaimedChunks) {
+            if (!visited.contains(chunk) && isSurrounded(chunk, group, allChunks)) {
+                Set<CityChunk> hole = new HashSet<>();
+                exploreHole(chunk, unclaimedChunks, hole, visited, group, allChunks);
+                holes.add(hole);
+            }
+        }
+
+        return holes;
+    }
+
+    private boolean isSurrounded(CityChunk chunk, Set<CityChunk> group, List<CityChunk> allChunks) {
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                if (dx == 0 && dz == 0) continue;
+                CityChunk neighbor = new CityChunk(chunk.x + dx, chunk.z + dz);
+                if (!group.contains(neighbor)) {
+                    if (allChunks.contains(neighbor)) {
+                        // Neighbor is unclaimed and not part of the group
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    private void exploreHole(CityChunk chunk, Set<CityChunk> unclaimedChunks, Set<CityChunk> hole, Set<CityChunk> visited, Set<CityChunk> group, List<CityChunk> allChunks) {
+        if (visited.contains(chunk)) return;
+        visited.add(chunk);
+        hole.add(chunk);
+
+        for (CityChunk neighbor : getNeighbors(chunk, new ArrayList<>(unclaimedChunks))) {
+            if (!group.contains(neighbor) && isSurrounded(neighbor, group, allChunks)) {
+                exploreHole(neighbor, unclaimedChunks, hole, visited, group, allChunks);
+            }
+        }
+    }
 }

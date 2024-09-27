@@ -4,26 +4,29 @@ import com.flowpowered.math.vector.Vector2d;
 import com.flowpowered.math.vector.Vector3d;
 import com.technicjelle.BMUtils.BMNative.BMNLogger;
 import com.technicjelle.BMUtils.BMNative.BMNMetadata;
-import com.technicjelle.UpdateChecker;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import de.bluecolored.bluemap.api.BlueMapAPI;
 import de.bluecolored.bluemap.api.BlueMapMap;
 import de.bluecolored.bluemap.api.BlueMapWorld;
+import de.bluecolored.bluemap.api.markers.Marker;
 import de.bluecolored.bluemap.api.markers.MarkerSet;
 import de.bluecolored.bluemap.api.markers.ShapeMarker;
-import de.bluecolored.bluemap.common.api.BlueMapWorldImpl;
-import org.jetbrains.annotations.Nullable;
+import de.bluecolored.bluemap.api.math.Color;
+import de.bluecolored.bluemap.api.math.Shape;
 
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
 
 public class MetropolisBlueMap implements Runnable {
 	private BMNLogger logger;
-	private UpdateChecker updateChecker;
-	private @Nullable Config config;
 	private HikariDataSource dataSource;
 
 	@Override
@@ -38,15 +41,11 @@ public class MetropolisBlueMap implements Runnable {
 			throw new RuntimeException(e);
 		}
 		logger.logInfo("Starting " + addonID + " " + addonVersion);
-		updateChecker = new UpdateChecker("TechnicJelle", addonID, addonVersion);
-		updateChecker.checkAsync();
 		BlueMapAPI.onEnable(onEnableListener);
 		BlueMapAPI.onDisable(onDisableListener);
 	}
 
 	final private Consumer<BlueMapAPI> onEnableListener = api -> {
-		updateChecker.getUpdateMessage().ifPresent(logger::logWarning);
-
 		HikariConfig hikariConfig = new HikariConfig();
 		hikariConfig.setJdbcUrl("jdbc:mysql://localhost:3306/metropolis");
 		hikariConfig.setUsername("bluemap");
@@ -55,18 +54,10 @@ public class MetropolisBlueMap implements Runnable {
 
 		dataSource = new HikariDataSource(hikariConfig);
 
-		try {
-			config = Config.load(api);
-		} catch (IOException e) {
-			config = null;
-			throw new RuntimeException(e);
-		}
-
 		for (BlueMapWorld world : api.getWorlds()) {
-			BlueMapWorldImpl worldImpl = (BlueMapWorldImpl) world;
 			for (BlueMapMap map : world.getMaps()) {
 				map.getMarkerSets().clear();
-				createMarkersForCity(map, 1);
+				createCityMarkers(map);
 			}
 		}
 	};
@@ -75,45 +66,57 @@ public class MetropolisBlueMap implements Runnable {
 		if (dataSource != null) {
 			dataSource.close();
 		}
-		if (config == null) return;
-		logger.logInfo("Goodbye, " + config.getWorld() + "!");
 	};
 
-	private void createMarkersForCity(BlueMapMap map, int cityId) {
-		CityChunk cityChunk = new CityChunk(0, 0); // Dummy initialization
-		List<CityChunk> chunks = cityChunk.fetchCityChunks(cityId, dataSource);
-		List<Set<CityChunk>> groups = cityChunk.groupChunks(chunks);
-
+	private void createCityMarkers(BlueMapMap map) {
+		String query = "SELECT * FROM mp_cities WHERE isOpen = 1";
 		MarkerSet markerSet = MarkerSet.builder()
-				.label("City " + cityId + " Markers")
+				.label("Städer")
 				.toggleable(true)
 				.defaultHidden(false)
 				.build();
-
-		for (Set<CityChunk> group : groups) {
-			logger.logInfo("Group of size " + group.size());
-
-			List<Vector2d> shape = cityChunk.generatePolygonFromChunks(group);
-			logger.logInfo("Shape size: " + shape.size());
-			for (Vector2d point : shape) {
-				logger.logInfo("Shape position: " + point.getX() + ", " + point.getY());
+		try (Connection connection = dataSource.getConnection();
+			 PreparedStatement statement = connection.prepareStatement(query);
+			 ResultSet resultSet = statement.executeQuery()) {
+			while (resultSet.next()) {
+				int cityId = resultSet.getInt("cityId");
+				String cityName = resultSet.getString("cityName");
+				List<Marker> markers = getCityMarkers(cityId);
+				for (Marker marker : markers) {
+					markerSet.put(cityName, marker);
+				}
 			}
+			map.getMarkerSets().put("Städer", markerSet);
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
 
+	private List<Marker> getCityMarkers(int cityId) {
+		CityChunk cityChunk = new CityChunk(0, 0);
+		List<CityChunk> chunks = cityChunk.fetchCityChunks(cityId, dataSource);
+		List<Set<CityChunk>> groups = cityChunk.groupChunks(chunks);
+		List<Marker> markers = new ArrayList<>();
+		CityInfo cityInfo = new CityInfo("", 0);
+		cityInfo = cityInfo.fetchCityInfo(cityId, dataSource);
+		for (Set<CityChunk> group : groups) {
+			List<Vector2d> shape = cityChunk.generatePolygonFromChunks(group);
+			List<Shape> holes = cityChunk.generateHoleShapes(group, chunks);
 			if (!shape.isEmpty()) {
 				Vector3d position = new Vector3d(shape.get(0).getX(), 64, shape.get(0).getY());
 				ShapeMarker marker = MarkerCreator.createShapeMarker(
-						"City " + cityId + " Group",
+						cityInfo.name,
 						position,
 						shape,
-						"Group of city chunks",
-						64
+						cityInfo.name,
+						64,
+						new Color(72, 202, 2, 1.0f),
+						new Color(69, 135, 33, 0.3f),
+						holes
 				);
-				markerSet.getMarkers().put("City " + cityId + " Group", marker);
-				logger.logInfo("Added group marker");
+				markers.add(marker);
 			}
 		}
-
-		logger.logInfo("Added all markers");
-		map.getMarkerSets().put("City " + cityId + " Markers", markerSet);
+		return markers;
 	}
 }
