@@ -25,12 +25,11 @@ public class MarkerCreator {
                 .holes(holes.toArray(new Shape[0]))
                 .depthTestEnabled(false)
                 .minDistance(10)
-                .maxDistance(10000000)
+                .maxDistance(2500)
                 .build();
     }
 
-    public static ExtrudeMarker createExtrudeMarker(String name, Vector3d position, List<Vector2d> vector2ds, String detail, float minY, float maxY, Color lineColor, Color fillColor) {
-        Shape shape = Shape.builder().addPoints(vector2ds).build();
+    public static ExtrudeMarker createExtrudeMarker(String name, Vector3d position, Shape shape, String detail, float minY, float maxY, Color lineColor, Color fillColor) {
         return ExtrudeMarker.builder()
                 .label(name)
                 .position(position)
@@ -42,8 +41,8 @@ public class MarkerCreator {
                 .sorting(0)
                 .listed(true)
                 .depthTestEnabled(false)
-                .minDistance(10)
-                .maxDistance(10000000)
+                .minDistance(12)
+                .maxDistance(2500)
                 .build();
     }
 }

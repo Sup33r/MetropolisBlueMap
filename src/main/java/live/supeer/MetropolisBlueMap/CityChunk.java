@@ -302,9 +302,9 @@ public class CityChunk {
             for (int dz = -1; dz <= 1; dz++) {
                 if (dx == 0 && dz == 0) continue;
                 CityChunk neighbor = new CityChunk(chunk.x + dx, chunk.z + dz);
-                if (!group.contains(neighbor)) {
-                    if (allChunks.contains(neighbor)) {
-                        // Neighbor is unclaimed and not part of the group
+                if (allChunks.contains(neighbor)) {
+                    if (!group.contains(neighbor)) {
+                        // Neighbor is unclaimed and within the area
                         return false;
                     }
                 }
